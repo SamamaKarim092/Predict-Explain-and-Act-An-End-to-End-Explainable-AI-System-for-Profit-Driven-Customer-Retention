@@ -129,3 +129,11 @@ cd Predict-Explain-and-Act
 
 # Install required dependencies
 pip install -r requirements.txt
+
+@inproceedings{karim2026predict,
+  title={Predict, Explain, and Act: An End-to-End Explainable AI System for Profit-Driven Customer Retention},
+  author={Karim, Muhammad Sumama and Agha, Dur-e-Shawar and Abrar, Taimoor and Qazi, Farheen and Faisal, Wasay},
+  booktitle={2026 4th International Conference on Information Science and Communication Technology (ICISCT)},
+  year={2026},
+  organization={IEEE}
+}
