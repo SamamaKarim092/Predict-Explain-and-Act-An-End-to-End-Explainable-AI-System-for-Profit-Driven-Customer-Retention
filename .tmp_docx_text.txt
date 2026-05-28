@@ -1,0 +1,323 @@
+﻿
+Predict, Explain, and Act: An End-to-End Explainable AI System for Profit-Driven Customer Retention
+
+Muhammad Sumama Karim Department of Software EngineeringSir Syed University of Engineering & TechnologyKarachi, Pakistan2023F-BSE-151@ssuet.edu.pk
+Dur-e-Shawar AghaDepartment of Software EngineeringSir Syed University of Engineering & TechnologyKarachi, Pakistandsagha@ssuet.edu.pk  Taimoor AbrarDepartment of Software EngineeringSir Syed University of Engineering & TechnologyKarachi, Pakistan2023F-BSE-369@ssuet.edu.pk
+Farheen QaziDepartment of Software EngineeringSir Syed University of Engineering & TechnologyKarachi, Pakistanfaqazi@ssuet.edu.pk  Wasay FaisalDepartment of Software EngineeringSir Syed University of Engineering & TechnologyKarachi, Pakistan2023F-BSE-200@ssuet.edu.pk
+
+
+Abstract— Customer churn is a huge source of financial loss for telecommunication companies, and since the cost of acquiring a new customer is five to seven times more than retaining an existing customer, it becomes a serious concern for the company. Although there exist many predictive models that can successfully identify customers who are at the risk of leaving the company, they are mostly black boxes that do not provide any information about why the customer is leaving and how the company should act.
+To address this issue, we have created an end-to-end solution that combines customer churn prediction, Explainable AI (XAI), recommendations, and ROI calculation into one deployable application. Our solution trains five machine learning models (XGBoost, Gradient Boosting, Random Forest, Logistic Regression, and Naive Bayes) on the IBM Telco dataset containing 7,043 records. To prevent data leakage, the model follows SMOTE oversampling strictly inside the cross-validation folds.
+The best-performing model was XGBoost, with an ROC-AUC of 84.31% and a recall of 90.64%. This performance is statistically significant, as proven by Wilcoxon Signed-Rank Tests (p = 0.041) and 5-fold stratified cross-validation (CV AUC: 0.8461 ± 0.011).
+Instead of simply resting on its high level of accuracy, the solution employs the use of SHAP to explain exactly what is going on in terms of why a customer is churning. The results of our analysis indicated that contract type, overall tenure, and internet service are the largest risk factors. A recommendation engine is then employed to take these individual pieces of information and use them to create targeted retention campaigns. To demonstrate the effectiveness of the solution in the real world, the custom ROI calculator estimates that running these targeted campaigns would result in a net savings of $132,000.
+Finally, we wrapped all of this functionality together in a complete desktop application with batch processing, interactive visual analysis, and PDF reporting. With the combination of raw predictions, explanations, and financial forecasting, this framework provides business teams with exactly what they need to deliver successful and profitable retention campaigns.
+Keywords— Customer Churn Prediction, Explainable AI, SHAP, XGBoost, SMOTE, ROI Analysis, Actionable Analytics
+Introduction 
+Customer churn, defined as the loss of a paying subscriber, remains one of the most significant challenges in the telecommunications industry. Studies show that it costs five to seven times more on average to acquire a new customer than to keep an existing one [1]. For a telecom company with millions of subscribers, even a small reduction in churn can mean the loss or gain of millions of dollars in revenue. This moves churn prediction from a technical problem to an essential part of the business.
+Even though machine learning has greatly improved churn prediction, current models still suffer from three major problems. First, they operate as black boxes. They can flag that a customer is likely to leave, but they fail to explain the underlying reasons why to the business [15], [16]. Second, simply knowing a customer might churn does not automatically give a company a clear strategy on how to retain them [12]. Finally, very few predictive models calculate the actual financial return of these interventions, making it incredibly difficult for managers to justify the budget for retention campaigns [11]. Because of these gaps, business teams often receive highly accurate predictions but lack the actionable insights needed to actually use them.
+To get around the black-box issue, many developers are turning to Explainable AI (XAI) [5]. Tools such as SHAP [4] and LIME [17] are incredibly useful because they break down a prediction to show the exact impact of individual features. However, a major gap still exists in the field: most researchers only use XAI for post-hoc analysis. They use it to understand the model's behavior after the fact, but they fail to connect these mathematical explanations to actionable business decisions [10], [22].
+Another common weakness in existing work is improper handling of class imbalance. Many studies apply SMOTE (Synthetic Minority Oversampling Technique) to the entire dataset before splitting into training and test sets, which causes data leakage and produces overly optimistic results [21], [23]. Proper application of SMOTE requires it to be performed inside cross-validation folds so that synthetic samples never appear in the test data. This paper's primary contribution is a novel integrated framework that unifies five components to bridge the gap between business-actionable intelligence and black-box churn prediction:
+Comparative study of five machine learning classifiers (XGBoost, Gradient Boosting, Random Forest, Logistic Regression, and Naive Bayes) with imblearn pipelines to ensure that SMOTE is properly used inside cross-validation folds to avoid data leakage.
+Statistical model selection via pairwise Wilcoxon Signed-Rank Tests and 5-fold stratified cross-validation to ensure that the chosen model (XGBoost) is substantially better, not merely better by chance.
+Addition of SHAP-based explainability to provide straightforward, feature-by-feature explanations for each prediction.
+A rule-based action recommendation engine that transforms churn drivers identified by SHAP into focused retention tactics.
+A profit-oriented ROI calculator that relies on De Caigny et al.'s cost structure to determine the financial payoff of following the recommendations of the model [11].
+To the best of our knowledge, no work has yet to combine the five elements predict, validate, explain, recommend, and quantify ROI into a single deployable system. The primary innovation of this work is the development of this end-to-end pipeline. The remainder of this paper is structured as follows: Section II examines relevant research in XAI and churn prediction. The suggested methodology is described in detail in Section III. The system architecture is shown in Section IV. Experimental results are covered in Section V, and limitations and future directions are discussed in Section VI.
+Related Work
+Machine Learning for Customer Churn Prediction
+Many machine learning algorithms have been employed in the extensive research on customer churn prediction. The following review points out the weaknesses of the most prominent researches and categorizes them according to their themes.
+Applying Decision Trees, SVM, and ensemble learning, Lalwani et al. [1] reviewed customer churn prediction in telecom on 7,043 customers with an accuracy rate of up to 95%, however, their research focused primarily on predicting accuracy and did not provide per-customer explanations. Wagh et al. [2] applied ensemble classifiers to gain an accuracy rate of 96.19%, but their methodology did not incorporate explainability mechanisms. In churn analysis, Manzoor et al. [3] applied Random Forest and gradient boosting classifiers, considering the model as a mystery that does not contain any explanations at the feature level.
+Vafeiadis et al. [13] systematically compared Logistic Regression, SVM, Decision Trees, Naive Bayes, and ensemble learning, finding that boosted ensembles outperform standalone classifiers with 97% AUC, but did not offer customer-by-customer explanations. Ahmad et al. [14] applied tree-based learning to 3,333 customers with feature engineering to achieve 93.3% accuracy, but did not consider model interpretability. Amin et al. [15] compared churn models on multiple telecom datasets and found that no algorithm is best in all situations, but did not offer a single framework for prediction to action. Idris et al. [16] applied Random Forest with PSO-based data balancing to enhance recall but did not consider interpretability.
+To overcome the shortcomings of standalone models, scientists often resort to XGBoost, a highly optimized gradient boosting library developed by Chen and Guestrin [20]. Due to its inherent ability to process sparse data and the presence of regularization techniques to counter overfitting, it has become a go-to library for tabular data problems. Its well-established performance record makes it a perfect match for modeling telecom churn behavior.
+Another characteristic problem of telecom data is that the actual churners comprise a very small fraction of the total data. To counter this problem of class imbalance, most papers use SMOTE, a class-imbalanced data handling technique developed by Chawla et al. [23]. Although SMOTE is a highly successful method, most researchers misuse it by oversampling the entire data set before splitting it. As explained in earlier literature [21], this leads to extreme data leakage. To get a fair performance assessment, the oversampling process needs to take place entirely within the cross-validation folds.
+Explainable AI and SHAP
+The increasing application of complex ML models has further emphasized the demand for interpretability. Arrieta et al. [5] offered a thorough review of XAI, grouping explanation techniques into model-specific and model-agnostic approaches. Jeyakumar et al. [22] conducted a review of XAI for customer churn in the banking and insurance sectors, verifying that although there is an increasing trend in the application of XAI, most applications are still isolated from prescriptive decision-making.
+Lundberg and Lee [4] introduced SHAP, a unified framework for interpreting predictions using Shapley values from cooperative game theory [7]. The TreeSHAP method [8] offers exact and efficient calculation for tree-based models like XGBoost. Nevertheless, SHAP has been applied mostly in standalone post-hoc explanation and not as a source for input recommendation systems.
+Ribeiro et al. [17] introduced LIME, a method that builds local interpretable models to interpret predictions. Although LIME is model-agnostic, it is prone to instability with respect to perturbations and does not have the same level of theoretical consistency as SHAP, which is ensured by its game-theoretic framework. This is the main reason for choosing SHAP in this research. Molnar [10] offered a thorough overview of interpretable ML techniques, covering both global and local interpretability. The importance of integrating both global and local interpretability, as done in the proposed system, is highlighted in this research but not extended to translating explanations into prescriptive decisions.
+Actionable Intelligence and Profit-Driven Evaluation
+Although prediction and explainability have been explored separately, there are very few studies that combine them into a single actionable framework. De Caigny et al. [11] presented a hybrid approach that combines logistic regression and decision trees on 51,306 customers and presented a profit-driven evaluation framework. Their cost framework, which assigns a benefit per retained churner and a cost per false retention campaign, serves as the foundation for the ROI calculator presented in this paper. However, De Caigny et al. did not implement XAI or recommendation systems.
+Verbeke et al. [12] presented interpretable churn models based on rule induction, focusing on model interpretability, but lacked a framework to translate those findings into actionable retention strategies. Goodman and Flaxman [18] claimed that the GDPR establishes a “right to explanation” for automated decision-making, and thus model interpretability is a legal requirement. Burez and Van den Poel [21] studied the handling of class imbalance for churn prediction but did not implement explainability.
+Research Gap. As discussed above, the research gap is four-fold: (1) Existing churn research is primarily concerned with accuracy but not explainability, (2) XAI techniques are used independently without relating to business activities, (3) SMOTE is used improperly outside of cross-validation, and (4) There is no existing solution that integrates the system for prediction, statistical validation, explanation, recommendation, and profit-driven ROI estimation. This research work fills all four gaps.
+Methodology
+The proposed system consists of a six-stage pipeline: (1) Data preprocessing, (2) Training of the model using SMOTE inside CV, (3) Statistical model selection, (4) SHAP-based explanation, (5) Action recommendation engine, and (6) Profit-Driven ROI estimation. This section explains each of the stages in detail.
+Dataset Description
+The IBM Telco Customer Churn dataset, available on Kaggle, is employed in this research. The dataset consists of 7,043 customer entries with 19 predictor variables and a binary target variable (Churn: Yes/No). The dataset is a real-world representation of customer data from a telecommunication firm. Table I describes the feature categories.
+Category
+Count
+Examples
+Demographic
+4
+Gender, SeniorCitizen, Partner, Dependents
+Account
+4
+Tenure, Contract, PaperlessBilling, PaymentMethod
+Services
+9
+PhoneService, InternetService, OnlineSecurity, TechSupport, StreamingTV, etc.
+Financial
+2
+MonthlyCharges, TotalCharges
+Target
+1
+Churn (Yes = 1, No = 0)
+
+The dataset has a churn rate of about 26.5% (1,869 churners vs. 5,174 non-churners), which realistically reflects the class imbalance commonly seen in real-world settings. During data cleaning, 11 records with missing TotalCharges values were imputed using the product of MonthlyCharges and tenure. Using this publicly available, real-world dataset ensures reproducibility and allows for direct comparison with previous studies.
+Data Preprocessing
+The model selection stage includes the following steps:
+
+Missing Value Imputation: Missing values in TotalCharges were found to be 11 in number, which referred to new customers who had just joined the network. Rather than using any of the usual mean or median imputation techniques, which could create artificial variance, these values were deterministically imputed by multiplying MonthlyCharges by tenure. For completely new customers, where tenure is 0, TotalCharges were simply equal to MonthlyCharges.
+
+Categorical Encoding: Out of the 15 categorical variables, the Label Encoding method was applied, where the binary variables were encoded as 0 and 1, and the other class variables were encoded as sequential integers. This method was selected over the One-Hot Encoding method in order to avoid the high-dimensional sparsity issue, which would result in optimal performance and speed for the tree-based ensemble algorithms (such as XGBoost and Random Forest) implemented in this research.
+
+Feature Scaling: All continuous variables were standardized to have a mean of 0 and variance of 1 using StandardScaler. This is mathematically very important since the regularization penalties used in XGBoost and Logistic Regression are very sensitive to feature values. If data is not scaled, it will result in features that have higher absolute values, e.g., TotalCharges, having a disproportionate impact on the loss function of these models. The transformation is given by:
+z=x-μσ
+Train-Test Split: The data is split into 80/20 stratified splits (5,634 for training and 1,409 for testing).
+Model Training with SMOTE Inside Cross-Validation
+XGBoost [20] is a gradient boosting algorithm with built-in regularization. It constructs trees sequentially, where each new tree attempts to correct the errors of the previous one. Its objective function combines a loss component and a regularization component:
+L=i=1nl(yi,yi)+k=1KΩ(fk)
+where l is the logistic loss, yi is the prediction for sample i, and Ω(fk) is the regularization penalty defined as:
+Ω(fk)=γT+12λ∥w∥2
+Here, T  QUOTE T denotes the number of leaves and w represents the leaf weights. The parameters QUOTE γ  γ and λ  QUOTE λ regulate tree complexity and weight magnitude, helping to control overfitting.
+Gradient Boosting builds an additive model by fitting each new tree to the negative gradient (residuals) of the loss function [19]. In contrast to XGBoost, it does not include built-in L1/L2 regularization.
+Random Forest [6] createsBdecision trees using bootstrapped samples and random subsets of features. The final prediction is obtained through majority voting:
+y=mode{hb(x)}b=1B
+where hb(x)  QUOTE hb(x) is the prediction of the QUOTE b  b-th tree for input x.
+Logistic Regression models churn probability using the sigmoid (logistic) function. The probability that a customer  QUOTE x  x will churn is:
+P(y=1∣x)=11+e-(β0+β1x1+β2x2+⋯+βnxn)
+where β0 is the intercept and  β1,β2,…,βnare the learned coefficients for features  QUOTE x1,x2,…,xn x1,x2,…,xn. The model is trained with L1 regularization (Lasso) and class_weight=balanced to address class imbalance.
+Gaussian Naive Bayes applies Bayes’ theorem under the assumption that features are conditionally independent:
+P(y∣x1,x2,…,xn)=P(y)i=1nP(xi∣y)P(x1,x2,…,xn)
+where  QUOTE P(y)  P(y)is the prior probability of churn,  QUOTE P(xi∣y)  P(xi∣y)is the likelihood of feature  QUOTE xi xigiven class y ,and the denominator serves as a normalizing constant.
+SMOTE Integration: A key methodological consideration is the correct placement of SMOTE oversampling [23]. Applying SMOTE to the entire dataset before splitting can introduce data leakage, as synthetic samples derived from test instances may appear in the training data. To avoid this, SMOTE is applied within each cross-validation fold using imblearn.pipeline.Pipeline. This ensures that synthetic minority samples are generated solely from the training portion of each fold, resulting in fair and unbiased performance estimates. The complete end-to-end pipeline, highlighting the integration of SMOTE within the cross-validation loop to prevent data leakage, is illustrated in Fig. 1.
+
+Fig. 1. The proposed end-to-end system architecture, highlighting the integration of SMOTE within the cross-validation pipeline to prevent data leakage.
+Statistical Model Selection
+The preprocessing pipeline includes the following steps
+
+5-Fold Stratified Cross-Validation: The models are trained using 5-fold stratified cross-validation on the training set. The primary training metric is ROC-AUC, which is a measure of the model’s ability to distinguish between classes irrespective of the particular class threshold. The average and standard deviation of the AUC values over the five folds are calculated to assess both performance and stability.      Wilcoxon Signed-Rank Test: In order to properly assess whether or not the improvement in model performance by the best-performing model is actually statistically significant or merely a result of a random data split in each fold for cross-validation, a pairwise Wilcoxon Signed-Rank Test was performed. In this regard, the null hypothesis (H0) would be that there is no median difference in cross-validation scores for two models being compared in this test. The alternative hypothesis (H1) would be that a significant difference does exist in cross-validation scores for two models being compared in this test. The null hypothesis is rejected at a significance level of  ∝ =0.05. This test is extremely well-suited for this study because it does not require a normal distribution in cross-validation scores.
+SHAP-Based Explainability
+SHAP (SHapley Additive exPlanations) [4] is incorporated into the prediction workflow to provide interpretable results. For tree-based models, TreeSHAP [8] enables efficient and exact computation of SHAP values. For a given prediction QUOTE f(x)  f(x), the SHAP value  QUOTE ϕi ϕifor feature QUOTE i  i quantifies that feature’s contribution to the final prediction. It is calculated as a weighted average across all possible feature subsets:
+ϕi=S⊆N\{i}​|S|! (|N|-|S|-1)!|N|!f(S∪{i})-f(S)
+where N represents the full set of features, QUOTE S  S is any subset that excludes feature QUOTE i  i , and  QUOTE f(S)  f(S) is the model’s prediction using only the features in  QUOTE S  S . The overall prediction can then be expressed additively as:
+f(x)=ϕ0+i=1|N|ϕi
+where  QUOTE ϕ0 ϕ0 is the base value, corresponding to the average model output.
+SHAP is selected over LIME [17] for three main reasons: (1) it guarantees theoretical consistency through Shapley values derived from cooperative game theory [7], (2) TreeSHAP enables exact computation for tree-based models, and (3) it produces deterministic explanations, meaning the same input always results in the same explanation
+The integration of SHAP provides:
+Local Explanations: Customer-level feature rankings that indicate which variables increase churn risk (positive SHAP values) or support retention (negative SHAP values).
+Natural Language Interpretation: SHAP contributions are converted into plain-language statements (e.g., “Month-to-month contract strongly increases churn risk (+22.3%)”).
+Factor Ranking: The most influential features are forwarded to the recommendation engine to guide targeted retention actions.
+Action Recommendation Engine
+The action recommendation engine employs a two-level structure to transform the churn-causing factors identified by SHAP into concrete retention strategies:
+Risk-Level Actions ( Tier 1 ): 
+The expected probability of churn determines the course of action:
+HIGH (≥70%): Immediate attention, including personalized discounts (20-30%), assignment of a personal account manager, and re-engagement efforts.
+MODERATE (40-69%): Active engagement, including highlighting service aspects, soliciting feedback via surveys, and limited-time discounts (10-15%).
+LOW (<40%): Examples of retention strategies include customer engagement and loyalty programs.
+Factor-Specific Actions (Tier 2 ):
+Based on the SHAP values, if certain factors are identified as key contributors to churn risk, actions are taken accordingly. For example:
+If the contract type is month-to-month, an annual contract with a 15% loyalty discount.
+If TechSupport = No → Assign a dedicated technical support representative is assigned.
+If the payment method is an electronic check, a switch to automatic bank transfer.
+If tenure < 12 months, the customer in a loyalty program with onboarding follow-up.
+To keep the recommendations relevant and actionable, only the top five most influential problem-solution pairs, as identified by SHAP values, are displayed.
+Profit-Driven ROI Estimation
+On the basis of the cost structure framework presented by De Caigny et al. [11], the system computes the financial value of the return on investment of the churn predictions as follows:
+ROI=i∈TP​CLVi-i∈TP∪FP​Ccampaign
+In the above equation, TP is the set of true positives (customers for which the prediction of churn is correct), (CLV​i) is the customer lifetime value saved by retaining customer (i) (set to $450), and (Ccampaign) is the cost of a customer retention campaign per customer (set to $50).
+In this cost structure, every successfully retained churner generates a profit of $400, and every false positive incurs a cost of $50.
+System Architecture And Implementation
+The system is implemented as a modular Python application with a desktop GUI developed using Tkinter. Its architecture clearly separates the backend machine learning and analytics layer from the frontend presentation layer.A. Backend Elements
+Backend Modules
+There are five main modules that comprise the backend: 
+Loading the data, preprocessing, creating the SMOTE-enabled pipeline, cross-validation, Wilcoxon statistical tests, and saving the trained model using joblib are all tasks of the training module (train_model.py). 
+Loading the encoders and trained model, processing the input features provided by the user, and returning the risk classification and churn probability are all tasks of the prediction module (predict.py). 
+The Explanation Module (explain.py) generates ranked feature contributions and natural-language explanations by using SHAP TreeExplainer for XGBoost. 
+The recommendation module (recommend.py) transforms SHAP-identified churn drivers and anticipated risk levels into workable, commercially viable retention strategies. 
+ROI Module: Determines the profit-driven return on investment for batch-level summaries as well as individual forecasts.
+Frontend Interface
+The GUI of the main page view as shown in Fig. 2, is the central hub for user interaction and comprises seven fully integrated pages:
+
+Fig.2. The system's main executive dashboard providing a comprehensive overview of the application interface and real-time risk metrics.
+Dashboard Module: It acts as the interface for the real-time monitoring of the evaluation metrics received from the model, the global dataset distribution, and the real-time operational status of the classifier.
+Granular Inference (Individual Prediction): It enables the manual ingestion of feature vectors for individual customers. It generates real-time local SHAP waterfall charts and calculates the retention intervention and the ROI for the customer.
+High Throughput Processing (Batch Upload & Results): It enables the macroscopic analysis of the dataset by ingesting CSV datasets and applying the active model to the dataset in batches, returning the risk distribution in a structured format.
+Comparative Analytics: An evaluation system for showing a multitude of performance metrics for all implemented classifiers, such as Recall, F1-scores, ROI projections, Wilcoxon p-values, and global feature importance metrics.
+Automated Synthesis Engine (Reports): Utilizes the ReportLab library for the automatic compilation of analytical results, local predictions, and summaries in exportable PDF formats for business stakeholders.
+Model Configuration (Settings): An interface for dynamic classifier switching with transparent, empirical justifications for the strengths and weaknesses of each implemented classifier, as well as associated validation metrics.
+Technology Stack
+Python 3.8+, scikit-learn [9], XGBoost [20] 
+imbalanced-learn for SMOTE pipelines, SciPy for Wilcoxon tests 
+SHAP [4] for model explainability 
+pandas, NumPy for data manipulation 
+Tkinter for GUI, ReportLab for PDF generation 
+joblib for model serialization 
+Result And Discussion
+Model Comparison
+Table II compares the performance of all five classifiers on the holdout test set (1,409 samples). All models apply SMOTE within cross-validation folds to ensure unbiased evaluation.
+Model
+Acc.
+Prec.
+Rec.
+F1
+AUC
+ROI
+XGBoost
+68.4
+45.2
+90.6
+60.3
+84.3
+$132K
+Grad. Boost.
+77.3
+55.6
+71.4
+62.5
+84.1
+$110K
+Random Forest
+75.4
+52.4
+77.8
+62.7
+84.1
+$118K
+Logistic Reg.
+73.5
+50.1
+78.3
+61.1
+84.0
+$117K
+Naive Bayes
+70.2
+46.6
+82.9
+59.6
+81.3
+$122K
+
+Among all the models that were tested, XGBoost was clearly the best performer. It achieved an ROC-AUC of 84.31% and accurately identified more than 90% of the true churners (90.64% recall rate). To ensure that these results were not biased toward specific data splits, we evaluated the model using 5-fold stratified cross-validation. The model achieved a highly reliable score of 0.8461 ± 0.011, and the small standard deviation is a clear indication that it works well across different data splits.
+At first, the precision score of 45.2% may seem a little low, but this was a deliberate business decision. In the telecom sector, it is much more costly to fail to identify a churner than to incorrectly target a safe customer. While retaining a customer saves approximately $450 in lifetime value, running a retention campaign only costs $50. Because of this 9:1 margin, the model has been built to be very aggressive. With 339 true churners correctly identified, the system saves $152,550. Even after deducting the $20,550 that was wasted on the 411 false positives, XGBoost still makes a massive net ROI of $132,000, which is easily the best among all the other models.
+If we examine the case of Gradient Boosting, it actually has a better precision value (55.6%) but a significantly lower recall value (71.4%). Due to this decrease in recall value, it misses the mark entirely on 72 actual churners that XGBoost is able to identify. The loss of these 72 customers translates to a loss of $32,400 for the business. Although Gradient Boosting is able to save the business $6,450 due to its reduced number of false-positive campaign notifications, this pales in comparison to the enormous loss of customer value.
+This raises an important consideration regarding accuracy and recall. Although XGBoost exhibited the lowest overall accuracy (68.35%) in the experiments, its high recall value of 90.64% is highlighted as the most critical metric for this domain. In practical terms, customer retention, the value of failing to identify a leaving customer is exponentially more significant than the cost of mistakenly providing a discount to a loyal customer. The fact that XGBoost is able to identify 9 out of 10 customers compared to the 7 out of 10 that Gradient Boosting identifies makes XGBoost a significantly more valuable tool in practical business applications.
+Statistical Validation
+To statistically validate that the performance of XGBoost is consistently superior, we performed a Wilcoxon Signed-Rank Test on the AUC values for each of the five cross-validation iterations. The data is summarized in the table below.
+Comparison
+p-value
+Significant?
+Δ AUC
+XGBoost vs. Grad. Boost.
+0.041
+Yes (p<0.05)
++0.17%
+XGBoost vs. Random Forest
+0.024
+Yes (p<0.05)
++0.23%
+XGBoost vs. Logistic Reg.
+0.278
+No
++0.33%
+XGBoost vs. Naive Bayes
+0.001
+Yes (p<0.05)
+
++3.04%
+At the standard 5% significance level, XGBoost truly did outperform Gradient Boosting (p=0.041), Random Forest (p=0.024), and Naive Bayes (p=0.001). The only model that even approached XGBoost was Logistic Regression (p=0.278), which was not statistically significant. However, having won three out of four direct comparisons, it is clear that XGBoost is simply the superior model in this case. Although the absolute differences in raw AUC values may appear marginal, the Wilcoxon test confirms that these performance gains are statistically significant rather than random fluctuations. When you put this into perspective for a giant telecom firm, even a 0.2% increase in AUC translates to the system correctly identifying hundreds of true churners that other models would have failed to detect.
+SHAP Analysis 
+To determine what the exact cause of the customers leaving was, the system employs SHAP analysis to understand the decision-making process of the XGBoost model. Overall, the top five largest risk factors are contract type, overall tenure, internet service, and the presence of online security or tech support. This factor can be seen in the summary plot (Fig. 3). The colors used in the plot are very easy to interpret, such as the group of red dots on the far right, which clearly indicates that a customer with a month-to-month contract is a strong indicator of a customer churning.
+
+Fig.3. SHAP summary plot illustrating the global impact of features on XGBoost churn predictions.
+In addition to analyzing the big picture, SHAP also allows the system to analyze the decision-making process of individual customers. For example, when analyzing a high-risk customer who was identified with an 87% chance of leaving:
+Contract Type = Month-to-month (ϕ=+0.223): No commitment at all is a major contributor to churn.
+Tech Support = No (ϕ=+0.091): The absence of tech support is a factor that reduces service loyalty.
+Monthly Charges = $95 (ϕ=+0.074): Exorbitant rates without any additional services are a major contributor to the increase in dissatisfaction.
+Tenure = 3 months (ϕ=+0.068): Low service engagement is a characteristic of a customer with very short tenure.
+These decomposed explanations allow business teams to understand the specific reasons behind each prediction and prioritize retention actions accordingly.
+Recommendation Engine Output 
+To formulate an effective retention strategy for a specific customer, the recommendation engine analyzes their highest SHAP values to generate targeted solutions. The system recommends these top five actions:
+Month-to-month contract (impact of 22.3%): Suggest a 1-year contract with a 15% loyalty discount.
+No technical support (9.1% impact): Assign a technical support specialist.
+High monthly expenses (7.4% impact): Provide a discounted bundled service package.
+Short tenure (6.8% impact): Enroll the customer in a loyalty program with onboarding follow-up if they have a short tenure.
+No online security (5.2% impact): Provide a 50% discount on an online security add-on.
+In order to facilitate transparent and data-driven customer retention, the suggested interventions are arranged according to their effect on the churn prediction.
+ROI Analysis
+To estimate the potential profitability of each model, we applied the cost-benefit framework developed by De Caigny et al. [11]. The final calculations are laid out in Table IV. This breakdown assumes that saving a customer (CLV) brings in $450, while the cost of reaching out to them for a campaign is $50.
+Model
+TP
+FP
+Est. ROI
+XGBoost
+339
+411
+$132,000
+Naive Bayes
+310
+377
+$121,700
+Random Forest
+291
+283
+$117,750
+Logistic Reg.
+293
+289
+$117,250
+Grad. Boost.
+267
+282
+$109,500
+XGBoost produced the highest overall ROI, with a projected return of $132,000. This success is a direct result of its high recall, enabling it to identify the vast majority of actual churners (339 out of 374). Although this strategy does lead to 411 false positives, the ROI structure makes the trade-off worthwhile. The company loses only $50 on a bad call but gains $450 on a successful call to prevent an actual churner. The 9:1 reward-to-risk ratio clearly demonstrates that the strategy with the highest priority on identifying actual churners is the most economical, no matter how high the false positive rate may be.
+Failure Analysis
+Despite its high recall, the XGBoost model is not without its flaws. The first and foremost problem is its precision rate of 45.20%, which indicates that about 55% of the customers identified by the system are not actually going to leave. This is a clear indicator of some wasted money on unnecessary retention efforts. However, as the ROI calculation demonstrated earlier, this trade-off is still the most lucrative option for the business. An analysis of the incorrectly classified instances reveals two primary failure modes:
+Borderline instances: Customers who are right on the cusp of a 50% churn probability are simply difficult to predict. These customers tend to have a combination of services and an average level of tenure, which puts them right at the boundary of the model's prediction.
+Unusual churners: These customers are the ones who appear to be rock-solid loyal on paper. They have long-term contracts and full-service plans, but they still leave. This is usually due to some real-world circumstance that the data set simply can't account for, such as a customer moving to a new city or leaving due to a competitor's promotion.
+Discussion
+The above framework is an improvement over existing customer churn management systems in the following four ways:
+Explainability: Unlike traditional black-box models, the inclusion of SHAP values allows for a precise, feature-by-feature explanation of every prediction. This degree of explainability makes it much simpler to attain GDPR compliance [18].
+Actionability: Rather than simply presenting managers with data, the recommendation engine allows them to act on those findings. By recommending the top five problem-solution pairs based on SHAP values, it tells them exactly which problems to solve first.
+Financial Justification: Unlike most existing models, this one actually correlates its predictions with real business expenses. The ROI calculator included in this framework gives managers the exact financial evidence they need to obtain a retention budget, with a hard dollar value of $132,000.	
+Statistical Validity: Unlike most existing models, the selection of the best model is not simply based on comparisons of accuracy. Instead, it is supported by the Wilcoxon Signed-Rank Test, offering strict mathematical proof that the selected model is, in fact, the better one.
+One area where the proposed framework faces a compromise is in terms of model complexity and interpretability. Since XGBoost is inherently complex, SHAP is necessary for interpretation, which adds to the computational complexity. However, for production environments that demand real-time predictions at a massive scale, this compromise may be relevant.
+Conclusion And Future Work
+This paper has demonstrated an end-to-end system for customer churn management that extends beyond the typical binary classification task. The proposed system has been shown to accomplish five major tasks: (1) XGBoost classification with 84.31% ROC-AUC and 90.64% recall on the IBM Telco Customer Churn dataset (7,043 customers), ascertained via 5-fold stratified CV (0.8461 ± 0.011) and Wilcoxon Signed-Rank Tests; (2) Proper SMOTE handling within CV folds to avoid data leakage; (3) SHAP feature explanations that break down each prediction into clear, feature-by-feature explanations; (4) A two-tier recommendation engine that provides personalized retention plans ranked by SHAP values ; and (5) A profit-maximizing ROI calculator forecasting $132,000 in potential returns. The key takeaway is that these five tasks are combined into a single, seamless pipeline. To the best of our knowledge, no other existing solution combines all five components into a single deployable system.
+Limitations
+There are a few limitations in this study. Firstly, the system is validated on a telecom dataset (IBM Telco, 7,043 records) only and may not be valid for other industries or larger telecom companies. Secondly, the precision of 45.20% of XGBoost indicates a huge number of false positives; however, the ROI study, based on profit, confirms that this is actually the most profitable approach with the 9:1 benefit-to-cost ratio. Thirdly, the recommendation engine uses predefined rules, not learned strategies, which may not be the optimal strategy in other business environments. Fourthly, the system does not consider temporal or sequential behavior patterns, which may actually provide better insights into customer churn. Fifthly, the ROI calculations are based on cost parameters (CLV of $450 and $50 campaign cost), which would be different for different companies. Finally, the system has not been validated by A/B testing in a real-world business environment.
+Future Work
+Future research directions include:
+Cross-Domain Validation: Validation on data of other telecom firms, and other domains (streaming, SaaS, banking).
+Deep Learning Models: Integration of LSTM models for modeling the temporal patterns of churn and survival analysis for predicting when customers will churn.
+Dynamic Recommendations: Use of reinforcement learning to learn which methods are actually effective based on historical intervention data.
+Real-Time Deployment: Moving towards a web-based platform with real-time scoring APIs.
+A/B Testing: Validation of the business efficacy of recommendations with controlled experiments and scalability in mind.
+Acknowledgment 
+The author would like to thank Dur e Shawar Agha, whose guidance and feedback were invaluable to the development of this project. Appreciation is also extended to Sir Syed University of Engineering & Technology (SSUET) for providing the academic environment that made this research possible.
+References
+P. Lalwani, M. K. Mishra, J. S. Chadha, and P. Sethi, “Customer churn prediction system: A machine learning approach,” Computing, vol. 104, no. 2, pp. 271–294, 2022.
+S. K. Wagh, A. A. Andhale, N. S. Wagh, S. J. Bhatore, and R. A. Kshirsagar, “Customer churn prediction in telecom sector using machine learning techniques,” Results in Control and Optimization, vol. 14, p. 100342, 2024.
+A. Manzoor, M. Qureshi, E. Kidney, and D. Liston, “Customer churn prediction using machine learning techniques,” IEEE Access, vol. 12, pp. 75796–75808, 2024.
+S. M. Lundberg and S.-I. Lee, “A unified approach to interpreting model predictions,” in Advances in Neural Information Processing Systems 30 (NeurIPS), 2017, pp. 4765–4774.
+A. B. Arrieta et al., “Explainable artificial intelligence (XAI): Concepts, taxonomies, opportunities and challenges toward responsible AI,” Information Fusion, vol. 58, pp. 82–115, 2020.
+L. Breiman, “Random forests,” Machine Learning, vol. 45, no. 1, pp. 5–32, 2001.
+L. S. Shapley, “A value for n-person games,” in Contributions to the Theory of Games II, H. W. Kuhn and A. W. Tucker, Eds. Princeton, NJ, USA: Princeton Univ. Press, 1953, pp. 307–317.
+S. M. Lundberg et al., “From local explanations to global understanding with explainable AI for trees,” Nature Machine Intelligence, vol. 2, no. 1, pp. 56–67, 2020.
+F. Pedregosa et al., “Scikit-learn: Machine learning in Python,” Journal of Machine Learning Research, vol. 12, pp. 2825–2830, 2011.
+C. Molnar, Interpretable Machine Learning: A Guide for Making Black Box Models Explainable, 2nd ed., 2022. [Online]. Available: https://christophm.github.io/interpretable-ml-book/.
+A. De Caigny, K. Coussement, and K. W. De Bock, “A new hybrid classification algorithm for customer churn prediction based on logistic regression and decision trees,” European Journal of Operational Research, vol. 269, no. 2, pp. 760–772, 2018.
+W. Verbeke, D. Martens, C. Huysmans, A. Brijs, and B. Baesens, “Building comprehensible customer churn prediction models with advanced rule induction techniques,” Expert Systems with Applications, vol. 38, no. 3, pp. 2354–2364, 2012.
+T. Vafeiadis, K. I. Diamantaras, G. Sarigiannidis, and K. Ch. Chatzisavvas, “A comparison of machine learning techniques for customer churn prediction,” Simulation Modelling Practice and Theory, vol. 55, pp. 1–9, 2015.
+A. K. Ahmad, A. Jafar, and K. Aljoumaa, “Customer churn prediction in telecom using machine learning in big data platform,” Journal of Big Data, vol. 6, no. 1, pp. 1–24, 2019.
+A. Amin et al., “Customer churn prediction in the telecommunication sector using a rough set approach,” Neurocomputing, vol. 237, pp. 242–254, 2017.
+A. Idris, M. Rizwan, and A. Khan, “Churn prediction in telecom using random forest and PSO based data balancing in combination with various feature selection strategies,” Computers and Electrical Engineering, vol. 38, no. 6, pp. 1808–1819, 2012.
+M. T. Ribeiro, S. Singh, and C. Guestrin, “‘Why should I trust you?’: Explaining the predictions of any classifier,” in Proc. 22nd ACM SIGKDD Int. Conf. KDD, 2016, pp. 1135–1144.
+B. Goodman and S. Flaxman, “European Union regulations on algorithmic decision-making and a ‘right to explanation’,” AI Magazine, vol. 38, no. 3, pp. 50–57, 2017.
+T. Hastie, R. Tibshirani, and J. Friedman, The Elements of Statistical Learning, 2nd ed. New York, NY, USA: Springer, 2009.
+T. Chen and C. Guestrin, “XGBoost: A scalable tree boosting system,” in Proc. 22nd ACM SIGKDD Int. Conf. KDD, 2016, pp. 785–794.
+J. Burez and D. Van den Poel, “Handling class imbalance in customer churn prediction,” Expert Systems with Applications, vol. 36, no. 3, pp. 4626–4636, 2009.
+J. V. Jeyakumar, S. K. Nair, B. Sepahvand, B. Busso, K. M. Ramachandran, and M. Shahverdy, “Explainable AI for customer churn prediction in banking and insurance: A survey,” IEEE Access, vol. 11, pp. 100215–100233, 2023.
+N. V. Chawla, K. W. Bowyer, L. O. Hall, and W. P. Kegelmeyer, “SMOTE: Synthetic minority over-sampling technique,” Journal of Artificial Intelligence Research, vol. 16, pp. 321–357, 2002.
+
+
+
